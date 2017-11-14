@@ -3,7 +3,7 @@ const MetroTransformer = require('metro-bundler/src/transformer');
 exports.transform = function transform({ src, filename, options }) {
   if (
     /[\/\\]node_modules[\/\\](ammonext|lodash|three)[\/\\]/.test(filename) ||
-    /[\/\\](ammo.js)/.test(filename)
+    /[\/\\](libs)[\/\\]/.test(filename)
   ) {
     return {
       ast: null,

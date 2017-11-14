@@ -25,7 +25,7 @@ class Scene extends React.Component {
   mouseCoords = new THREE.Vector2();
   raycaster = new THREE.Raycaster();
   ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
-  gravityConstant = 0.78;
+  gravityConstant = 0.88;
   collisionConfiguration;
   dispatcher;
   broadphase;
@@ -216,7 +216,7 @@ class Scene extends React.Component {
     } else {
       // Standard Background
       this.scene.background = new THREE.Color(0xbfd1e5);
-      this.scene.fog = new THREE.FogExp2(0xcccccc, 0.002);
+      this.scene.fog = new THREE.FogExp2(0xbfd1e5, 0.002);
 
       /// Standard Camera
       this.camera = new THREE.PerspectiveCamera(60, width / height, 0.2, 2000);

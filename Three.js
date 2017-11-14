@@ -3,7 +3,7 @@ global.THREE = THREE;
 export default THREE;
 
 //Physics
-require('./ammo');
+require('./libs/ammo');
 require('three/examples/js/controls/OrbitControls');
 require('three/examples/js/ConvexObjectBreaker');
 require('three/examples/js/QuickHull');

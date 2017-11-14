@@ -1,24 +1,25 @@
 {
-  "name": "expo-whitestorm",
+  "name": "ammo-shatter",
   "version": "0.0.0",
-  "description": "A library to use WhitestormJS 2 with Expo",
+  "description": "Ammo + Three with Expo",
   "author": "Expo",
   "private": true,
-  "main": "src/ExpoWhitestorm.js",
+  "main": "node_modules/expo/AppEntry.js",
   "eslintConfig": {
     "extends": "universe/native"
   },
   "dependencies": {
-    "expo": "^22.0.4",
+    "expo": "^22.0.0",
+    "expo-three": "^2.0.1",
     "fbemitter": "^2.1.1",
     "fs": "^0.0.1-security",
     "invariant": "^2.2.2",
     "nullthrows": "^1.0.0",
     "path": "^0.12.7",
-    "react": "16.0.0-beta.5",
-    "react-native": "https://github.com/expo/react-native/archive/sdk-22.0.4.tar.gz",
-    "three": "^0.87.1",
-    "expo-three": "^2.0.1",
+    "react": "16.1.1",
+    "react-native": "https://github.com/expo/react-native/archive/sdk-22.0.2.tar.gz",
+    "react-native-console-time-polyfill": "^0.0.6",
+    "three": "^0.88.0",
     "xmldom-qsa": "1.0.3"
   },
   "devDependencies": {

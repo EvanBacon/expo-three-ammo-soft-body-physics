@@ -9,13 +9,15 @@
     "entryPoint": "node_modules/expo/AppEntry.js",
     "orientation": "portrait",
     "primaryColor": "#056ECF",
-    "icon": "./assets/icons/loading-icon.png",
+    "icon": "./assets/icons/app-icon.png",
     "splash": {
-      "icon": "./assets/icons/loading-icon.png",
-      "backgroundColor": "#056ECF"
+      "image": "./assets/icons/loading-icon.png",
+      "backgroundColor": "#056ECF",
+      "resizeMode": "contain"
     },
     "packagerOpts": {
-      "config": "./rn-cli.config.js"
+      "config": "./rn-cli.config.js",
+      "assetExts": ["ttf"]
     },
     "ios": {
       "supportsTablet": true
