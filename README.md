@@ -1,7 +1,5 @@
-# Expo Whitestorm
+# Expo Ammo Shatter
 
-A recreational project to run Whitestorm 2 on Expo
+An example of using [Ammo.js](https://github.com/kripken/ammo.js/) in [Expo](https://expo.io/)!
 
----
-
-This project is currently designed for the Expo team to make fun games. Support costs one bitcoin per hour.
+Try the demo: https://exp.host/@bacon/ammo-shatter 
