@@ -29,7 +29,7 @@ class Scene extends React.Component {
   mouseCoords = new THREE.Vector2();
   raycaster = new THREE.Raycaster();
   ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
-  gravityConstant = 7.8;
+  gravityConstant = 0.78;
   collisionConfiguration;
   dispatcher;
   broadphase;
@@ -117,12 +117,12 @@ class Scene extends React.Component {
       this.createDebrisFromBreakableObject(object);
     };
     // Ground
-    this.pos.set(0, -0.5, 0);
+    this.pos.set(0, -0.05, 0);
     this.quat.set(0, 0, 0, 1);
     var ground = this.createParalellepipedWithPhysics(
-      40,
-      1,
-      40,
+      4.0,
+      0.1,
+      4.0,
       0,
       this.pos,
       this.quat,
@@ -141,39 +141,39 @@ class Scene extends React.Component {
     ground.material.needsUpdate = true;
 
     // Tower 1
-    var towerMass = 1000;
-    var towerHalfExtents = new THREE.Vector3(2, 5, 2);
-    this.pos.set(-8, 5, 0);
+    var towerMass = 100.0;
+    var towerHalfExtents = new THREE.Vector3(0.2, 0.5, 0.2);
+    this.pos.set(-0.8, 0.5, 0);
     this.quat.set(0, 0, 0, 1);
-    createObject(towerMass, towerHalfExtents, this.pos, this.quat, createMaterial(0xf0a024));
+    createObject(towerMass, towerHalfExtents, this.pos, this.quat, createMaterial(0x2188ff));
 
     // Tower 2
-    this.pos.set(8, 5, 0);
+    this.pos.set(0.8, 0.5, 0);
     this.quat.set(0, 0, 0, 1);
-    createObject(towerMass, towerHalfExtents, this.pos, this.quat, createMaterial(0xf4a321));
+    createObject(towerMass, towerHalfExtents, this.pos, this.quat, createMaterial(0x2188ff));
 
     //Bridge
-    var bridgeMass = 100;
-    var bridgeHalfExtents = new THREE.Vector3(7, 0.2, 1.5);
-    this.pos.set(0, 10.2, 0);
+    var bridgeMass = 10.0;
+    var bridgeHalfExtents = new THREE.Vector3(0.7, 0.02, 0.15);
+    this.pos.set(0, 1.02, 0);
     this.quat.set(0, 0, 0, 1);
-    createObject(bridgeMass, bridgeHalfExtents, this.pos, this.quat, createMaterial(0xb38835));
+    createObject(bridgeMass, bridgeHalfExtents, this.pos, this.quat, createMaterial(0x242c3a));
 
     // Stones
-    var stoneMass = 120;
-    var stoneHalfExtents = new THREE.Vector3(1, 2, 0.15);
+    var stoneMass = 12.0;
+    var stoneHalfExtents = new THREE.Vector3(0.1, 0.2, 0.015);
     var numStones = 8;
     this.quat.set(0, 0, 0, 1);
     for (var i = 0; i < numStones; i++) {
-      this.pos.set(0, 2, 15 * (0.5 - i / (numStones + 1)));
+      this.pos.set(0, 0.2, 1.5 * (0.5 - i / (numStones + 1)));
 
-      createObject(stoneMass, stoneHalfExtents, this.pos, this.quat, createMaterial(0xb0b0b0));
+      createObject(stoneMass, stoneHalfExtents, this.pos, this.quat, createMaterial(0xbebebe));
     }
 
     // Mountain
-    var mountainMass = 860;
-    var mountainHalfExtents = new THREE.Vector3(4, 5, 4);
-    this.pos.set(5, mountainHalfExtents.y * 0.5, -7);
+    var mountainMass = 86.0;
+    var mountainHalfExtents = new THREE.Vector3(0.4, 0.5, 0.4);
+    this.pos.set(0.5, mountainHalfExtents.y * 0.5, -0.7);
     this.quat.set(0, 0, 0, 1);
     var mountainPoints = [];
     mountainPoints.push(
@@ -191,7 +191,7 @@ class Scene extends React.Component {
     mountainPoints.push(new THREE.Vector3(0, mountainHalfExtents.y, 0));
     const mountain = new THREE.Mesh(
       new THREE.ConvexGeometry(mountainPoints),
-      createMaterial(0xffb443)
+      createMaterial(0xcd53c3)
     );
     mountain.position.copy(this.pos);
     mountain.quaternion.copy(this.quat);
@@ -224,11 +224,11 @@ class Scene extends React.Component {
 
       /// Standard Camera
       this.camera = new THREE.PerspectiveCamera(60, width / height, 0.2, 2000);
-      this.camera.position.set(-14, 8, 16);
+      this.camera.position.set(-1.4, 0.8, 1.6);
 
       // controls
       this.controls = new THREE.OrbitControls(this.camera);
-      this.controls.target.set(0, 2, 0);
+      this.controls.target.set(0, 0.2, 0);
     }
   };
 
@@ -237,17 +237,17 @@ class Scene extends React.Component {
     this.scene.add(ambientLight);
 
     const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(-10, 18, 5);
+    light.position.set(-1.0, 1.8, 0.5);
     light.castShadow = USE_SHADOWS;
     if (USE_SHADOWS) {
-      var d = 14;
+      var d = 1.4;
       light.shadow.camera.left = -d;
       light.shadow.camera.right = d;
       light.shadow.camera.top = d;
       light.shadow.camera.bottom = -d;
 
-      light.shadow.camera.near = 2;
-      light.shadow.camera.far = 50;
+      light.shadow.camera.near = 0.2;
+      light.shadow.camera.far = 5.0;
 
       light.shadow.mapSize.x = 1024;
       light.shadow.mapSize.y = 1024;
@@ -269,8 +269,8 @@ class Scene extends React.Component {
         this.raycaster.setFromCamera(this.mouseCoords, this.camera);
 
         // Creates a ball and throws it
-        var ballMass = 64;
-        var ballRadius = 0.4;
+        var ballMass = 6.4;
+        var ballRadius = 0.04;
 
         var ball = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 14, 10), this.ballMaterial);
         ball.castShadow = USE_SHADOWS;
@@ -283,7 +283,7 @@ class Scene extends React.Component {
         var ballBody = this.createRigidBody(ball, ballShape, ballMass, this.pos, this.quat);
 
         this.pos.copy(this.raycaster.ray.direction);
-        this.pos.multiplyScalar(64 * event.touches.length);
+        this.pos.multiplyScalar(6.4 * event.touches.length);
         ballBody.setLinearVelocity(new Ammo.btVector3(this.pos.x, this.pos.y, this.pos.z));
       },
       false
@@ -439,7 +439,7 @@ class Scene extends React.Component {
   maxSubSteps = 1;
   updatePhysics = deltaTime => {
     // Step world
-    this.physicsWorld.stepSimulation(deltaTime, this.maxSubSteps, this.fixedTimeStep);
+    this.physicsWorld.stepSimulation(deltaTime, deltaTime * 4, this.fixedTimeStep);
 
     // Update rigid bodies
     for (let i = 0, il = this.rigidBodies.length; i < il; i++) {
@@ -507,7 +507,7 @@ class Scene extends React.Component {
 
       // Subdivision
 
-      const fractureImpulse = 250;
+      const fractureImpulse = 25.0;
 
       if (breakable0 && !collided0 && maxImpulse > fractureImpulse) {
         var debris = this.convexBreaker.subdivideByImpact(
