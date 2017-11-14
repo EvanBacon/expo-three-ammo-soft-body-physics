@@ -15,13 +15,44 @@ import 'three/examples/js/libs/ammo.js';
 
 const { Ammo } = global;
 
+const USE_SHADOWS = false;
+
 class Scene extends React.Component {
   static defaultProps = {
     onLoadingUpdated: ({ loaded, total }) => {},
     onFinishedLoading: () => {},
   };
 
-  AR = false;
+  AR = true;
+
+  convexBreaker = new THREE.ConvexObjectBreaker();
+  mouseCoords = new THREE.Vector2();
+  raycaster = new THREE.Raycaster();
+  ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
+  gravityConstant = 7.8;
+  collisionConfiguration;
+  dispatcher;
+  broadphase;
+  solver;
+  physicsWorld;
+  margin = 0.05;
+
+  // Rigid bodies include all movable objects
+  rigidBodies = [];
+
+  pos = new THREE.Vector3();
+  quat = new THREE.Quaternion();
+  transformAux1 = new Ammo.btTransform();
+  tempBtVec3_1 = new Ammo.btVector3(0, 0, 0);
+
+  time = 0;
+
+  objectsToRemove = [];
+
+  numObjectsToRemove = 0;
+
+  impactPoint = new THREE.Vector3();
+  impactNormal = new THREE.Vector3();
 
   shouldComponentUpdate(nextProps, nextState) {
     const { props, state } = this;
@@ -51,14 +82,12 @@ class Scene extends React.Component {
     this.renderer.setPixelRatio(scale);
     this.renderer.setSize(width, height);
     this.renderer.setClearColor(0x000000, 1.0);
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = USE_SHADOWS;
 
     this.setupScene(arSession);
 
-    this.textureLoader = new THREE.TextureLoader();
-
     // resize listener
-    window.addEventListener('resize', this.onWindowResize, false);
+    Dimensions.addEventListener('change', this.onResize);
 
     this.setupPhysics();
     await this.createObjects();
@@ -99,7 +128,7 @@ class Scene extends React.Component {
       this.quat,
       new THREE.MeshPhongMaterial({ color: 0xffffff })
     );
-    ground.receiveShadow = true;
+    ground.receiveShadow = USE_SHADOWS;
 
     const texture = await ExpoTHREE.createTextureAsync({
       asset: Expo.Asset.fromModule(Files.textures.grid),
@@ -200,7 +229,6 @@ class Scene extends React.Component {
       // controls
       this.controls = new THREE.OrbitControls(this.camera);
       this.controls.target.set(0, 2, 0);
-      // this.controls.addEventListener('change', this._render); // remove when using animation loop
     }
   };
 
@@ -210,18 +238,20 @@ class Scene extends React.Component {
 
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(-10, 18, 5);
-    light.castShadow = true;
-    var d = 14;
-    light.shadow.camera.left = -d;
-    light.shadow.camera.right = d;
-    light.shadow.camera.top = d;
-    light.shadow.camera.bottom = -d;
+    light.castShadow = USE_SHADOWS;
+    if (USE_SHADOWS) {
+      var d = 14;
+      light.shadow.camera.left = -d;
+      light.shadow.camera.right = d;
+      light.shadow.camera.top = d;
+      light.shadow.camera.bottom = -d;
 
-    light.shadow.camera.near = 2;
-    light.shadow.camera.far = 50;
+      light.shadow.camera.near = 2;
+      light.shadow.camera.far = 50;
 
-    light.shadow.mapSize.x = 1024;
-    light.shadow.mapSize.y = 1024;
+      light.shadow.mapSize.x = 1024;
+      light.shadow.mapSize.y = 1024;
+    }
 
     this.scene.add(light);
   };
@@ -239,12 +269,12 @@ class Scene extends React.Component {
         this.raycaster.setFromCamera(this.mouseCoords, this.camera);
 
         // Creates a ball and throws it
-        var ballMass = 35;
+        var ballMass = 64;
         var ballRadius = 0.4;
 
         var ball = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 14, 10), this.ballMaterial);
-        ball.castShadow = true;
-        ball.receiveShadow = true;
+        ball.castShadow = USE_SHADOWS;
+        ball.receiveShadow = USE_SHADOWS;
         var ballShape = new Ammo.btSphereShape(ballRadius);
         ballShape.setMargin(this.margin);
         this.pos.copy(this.raycaster.ray.direction);
@@ -253,7 +283,7 @@ class Scene extends React.Component {
         var ballBody = this.createRigidBody(ball, ballShape, ballMass, this.pos, this.quat);
 
         this.pos.copy(this.raycaster.ray.direction);
-        this.pos.multiplyScalar(24);
+        this.pos.multiplyScalar(64 * event.touches.length);
         ballBody.setLinearVelocity(new Ammo.btVector3(this.pos.x, this.pos.y, this.pos.z));
       },
       false
@@ -276,42 +306,11 @@ class Scene extends React.Component {
     this.physicsWorld.setGravity(new Ammo.btVector3(0, -this.gravityConstant, 0));
   };
 
-  convexBreaker = new THREE.ConvexObjectBreaker();
-  mouseCoords = new THREE.Vector2();
-  raycaster = new THREE.Raycaster();
-  ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
-  gravityConstant = 7.8;
-  collisionConfiguration;
-  dispatcher;
-  broadphase;
-  solver;
-  physicsWorld;
-  margin = 0.05;
-  textureLoader;
-
-  // Rigid bodies include all movable objects
-  rigidBodies = [];
-
-  pos = new THREE.Vector3();
-  quat = new THREE.Quaternion();
-  transformAux1 = new Ammo.btTransform();
-  tempBtVec3_1 = new Ammo.btVector3(0, 0, 0);
-
-  time = 0;
-
-  objectsToRemove = [];
-
-  numObjectsToRemove = 0;
-
-  impactPoint = new THREE.Vector3();
-  impactNormal = new THREE.Vector3();
-
   setupWorldAsync = async () => {
     this.setupLights();
-    // this.scene.add(new THREE.GridHelper(4, 10));
   };
 
-  onWindowResize = () => {
+  onResize = () => {
     const { width, height, scale } = Dimensions.get('window');
 
     this.camera.aspect = width / height;
@@ -340,8 +339,8 @@ class Scene extends React.Component {
   };
 
   createDebrisFromBreakableObject = object => {
-    object.castShadow = true;
-    object.receiveShadow = true;
+    object.castShadow = USE_SHADOWS;
+    object.receiveShadow = USE_SHADOWS;
 
     const shape = this.createConvexHullPhysicsShape(object.geometry.vertices);
     shape.setMargin(this.margin);
@@ -434,9 +433,13 @@ class Scene extends React.Component {
     this.scene.remove(object);
     this.physicsWorld.removeRigidBody(object.userData.physicsBody);
   };
+
+  //http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
+  fixedTimeStep = 1 / 60;
+  maxSubSteps = 1;
   updatePhysics = deltaTime => {
     // Step world
-    this.physicsWorld.stepSimulation(deltaTime, 10);
+    this.physicsWorld.stepSimulation(deltaTime, this.maxSubSteps, this.fixedTimeStep);
 
     // Update rigid bodies
     for (let i = 0, il = this.rigidBodies.length; i < il; i++) {
