@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Expo Whitestorm",
-    "description": "A demo of WhitestormJS on Expo",
-    "slug": "whitestorm",
+    "name": "Ammo Shatter",
+    "description": "Ammo + Three",
+    "slug": "ammo-shatter",
     "version": "1.0.0",
     "privacy": "public",
     "sdkVersion": "22.0.0",
     "entryPoint": "node_modules/expo/AppEntry.js",
     "orientation": "portrait",
-    "primaryColor": "#cccccc",
+    "primaryColor": "#056ECF",
     "icon": "./assets/icons/loading-icon.png",
     "splash": {
       "icon": "./assets/icons/loading-icon.png",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#056ECF"
     },
     "packagerOpts": {
       "config": "./rn-cli.config.js"
