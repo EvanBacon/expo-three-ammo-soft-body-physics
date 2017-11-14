@@ -9,21 +9,17 @@ import { Dimensions } from 'react-native';
 import { ThreeView } from './index';
 
 import THREE from '../Three';
-import 'three/examples/js/geometries/ConvexGeometry';
-import 'three/examples/js/ConvexObjectBreaker';
-import 'three/examples/js/libs/ammo.js';
 
 const { Ammo } = global;
 
 const USE_SHADOWS = false;
+const USE_AR = false;
 
 class Scene extends React.Component {
   static defaultProps = {
     onLoadingUpdated: ({ loaded, total }) => {},
     onFinishedLoading: () => {},
   };
-
-  AR = true;
 
   convexBreaker = new THREE.ConvexObjectBreaker();
   mouseCoords = new THREE.Vector2();
@@ -65,7 +61,7 @@ class Scene extends React.Component {
         style={{ flex: 1 }}
         onContextCreate={this.onContextCreateAsync}
         render={this.animate}
-        enableAR={this.AR}
+        enableAR={USE_AR}
       />
     );
   }
@@ -211,7 +207,7 @@ class Scene extends React.Component {
     // scene
     this.scene = new THREE.Scene();
 
-    if (this.AR) {
+    if (USE_AR) {
       // AR Background Texture
       this.scene.background = ExpoTHREE.createARBackgroundTexture(arSession, this.renderer);
 
