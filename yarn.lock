@@ -1651,6 +1651,10 @@ expand-range@^1.8.1:
   dependencies:
     fill-range "^2.1.0"
 
+expo-three@^2.0.1:
+  version "2.0.3"
+  resolved "https://registry.yarnpkg.com/expo-three/-/expo-three-2.0.3.tgz#e886be665ff9a211dbce4f1ad5f5f072b7c72535"
+
 expo@^22.0.0:
   version "22.0.0"
   resolved "https://registry.yarnpkg.com/expo/-/expo-22.0.0.tgz#a83fbccd2ab0aa9b6398475c6b36e8bae9f39f25"
@@ -3001,6 +3005,10 @@ nullthrows@^1.0.0:
 number-is-nan@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/number-is-nan/-/number-is-nan-1.0.1.tgz#097b602b53422a522c1afb8790318336941a011d"
+
+nwmatcher@^1.4.1:
+  version "1.4.3"
+  resolved "https://registry.yarnpkg.com/nwmatcher/-/nwmatcher-1.4.3.tgz#64348e3b3d80f035b40ac11563d278f8b72db89c"
 
 oauth-sign@~0.8.1, oauth-sign@~0.8.2:
   version "0.8.2"
@@ -4398,6 +4406,12 @@ xmldoc@^0.4.0:
   resolved "https://registry.yarnpkg.com/xmldoc/-/xmldoc-0.4.0.tgz#d257224be8393eaacbf837ef227fd8ec25b36888"
   dependencies:
     sax "~1.1.1"
+
+xmldom-qsa@1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/xmldom-qsa/-/xmldom-qsa-1.0.3.tgz#3b70a440997982aa323f911a8b8c3c7db6a6ff1f"
+  dependencies:
+    nwmatcher "^1.4.1"
 
 xmldom@0.1.x:
   version "0.1.27"

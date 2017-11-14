@@ -17,7 +17,10 @@
     "path": "^0.12.7",
     "react": "16.0.0-beta.5",
     "react-native": "https://github.com/expo/react-native/archive/sdk-22.0.1.tar.gz",
-    "whs": "^2.1.8"
+    "whs": "^2.1.8",
+    "three": "^0.87.1",
+    "expo-three": "^2.0.1",
+    "xmldom-qsa": "1.0.3"
   },
   "devDependencies": {
     "eslint": "^4.9.0",

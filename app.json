@@ -9,10 +9,9 @@
     "entryPoint": "node_modules/expo/AppEntry.js",
     "orientation": "portrait",
     "primaryColor": "#cccccc",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icons/loading-icon.png",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "cover",
+      "icon": "./assets/icons/loading-icon.png",
       "backgroundColor": "#ffffff"
     },
     "packagerOpts": {
