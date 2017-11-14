@@ -230,11 +230,12 @@ class Scene extends React.Component {
     window.document.addEventListener(
       'touchstart',
       event => {
-        const xPos = event.clientX / window.innerWidth * 2 - 1;
-        const yPos = -(event.clientY / window.innerHeight) * 2 + 1;
+        const { width, height } = Dimensions.get('window');
+        const { locationX: x, locationY: y } = event;
+        const xPos = x / width * 2 - 1;
+        const yPos = -(y / height) * 2 + 1;
         this.mouseCoords.set(xPos, yPos);
 
-        console.warn('t', xPos, yPos);
         this.raycaster.setFromCamera(this.mouseCoords, this.camera);
 
         // Creates a ball and throws it
