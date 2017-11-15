@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Ammo Shatter",
+    "name": "Ammo Soft",
     "description": "Ammo + Three",
-    "slug": "ammo-shatter",
+    "slug": "ammo-soft",
     "version": "1.0.0",
     "privacy": "public",
     "sdkVersion": "22.0.0",

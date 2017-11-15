@@ -22,20 +22,6 @@ export default class ThreeView extends React.Component {
     </View>
   );
   render = () => {
-    if (!Expo.Constants.isDevice) {
-      return this._renderErrorView(ErrorMessage.simulator);
-    }
-    if (Expo.Constants.deviceYearClass < 2015) {
-      const message = `${ErrorMessage.aNine} ${Expo.Constants.deviceYearClass} device`;
-      console.error(message);
-      return this._renderErrorView(message);
-    }
-    if (Platform.OS !== 'ios') {
-      const message = `${ErrorMessage.notIosAR} ${Platform.OS} device`;
-      console.error(message);
-      return this._renderErrorView(message);
-    }
-
     return (
       <Expo.GLView
         nativeRef_EXPERIMENTAL={this._setNativeGLView}

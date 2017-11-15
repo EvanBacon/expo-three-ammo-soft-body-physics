@@ -21,15 +21,11 @@ class Scene extends React.Component {
     onFinishedLoading: () => {},
   };
 
-  convexBreaker = new THREE.ConvexObjectBreaker();
   mouseCoords = new THREE.Vector2();
   raycaster = new THREE.Raycaster();
   ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
   gravityConstant = 0.88;
   collisionConfiguration;
-  dispatcher;
-  broadphase;
-  solver;
   physicsWorld;
   margin = 0.05;
 
@@ -49,6 +45,13 @@ class Scene extends React.Component {
 
   impactPoint = new THREE.Vector3();
   impactNormal = new THREE.Vector3();
+
+  clickRequest = false;
+  pos = new THREE.Vector3();
+  quat = new THREE.Quaternion();
+  // Physics variables
+  softBodies = [];
+  softBodyHelpers = new Ammo.btSoftBodyHelpers();
 
   shouldComponentUpdate(nextProps, nextState) {
     const { props, state } = this;
@@ -86,119 +89,238 @@ class Scene extends React.Component {
     Dimensions.addEventListener('change', this.onResize);
 
     this.setupPhysics();
-    await this.createObjects();
 
     // // setup custom world
     await this.setupWorldAsync();
+    await this.createObjects();
     this.setupInput();
 
     this.props.onFinishedLoading();
   };
 
+  setupPhysics = () => {
+    // Physics configuration
+    const collisionConfiguration = new Ammo.btSoftBodyRigidBodyCollisionConfiguration();
+    const dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
+    const broadphase = new Ammo.btDbvtBroadphase();
+    const solver = new Ammo.btSequentialImpulseConstraintSolver();
+    const softBodySolver = new Ammo.btDefaultSoftBodySolver();
+    this.physicsWorld = new Ammo.btSoftRigidDynamicsWorld(
+      dispatcher,
+      broadphase,
+      solver,
+      collisionConfiguration,
+      softBodySolver
+    );
+    this.physicsWorld.setGravity(new Ammo.btVector3(0, this.gravityConstant, 0));
+    this.physicsWorld.getWorldInfo().set_m_gravity(new Ammo.btVector3(0, this.gravityConstant, 0));
+  };
+
   createObjects = async () => {
-    const createObject = (mass, halfExtents, pos, quat, material) => {
-      const object = new THREE.Mesh(
-        new THREE.BoxGeometry(halfExtents.x * 2, halfExtents.y * 2, halfExtents.z * 2),
-        material
-      );
-      object.position.copy(pos);
-      object.quaternion.copy(quat);
-      this.convexBreaker.prepareBreakableObject(
-        object,
-        mass,
-        new THREE.Vector3(),
-        new THREE.Vector3(),
-        true
-      );
-      this.createDebrisFromBreakableObject(object);
-    };
     // Ground
-    this.pos.set(0, -0.05, 0);
+    this.pos.set(0, -0.5, 0);
     this.quat.set(0, 0, 0, 1);
-    var ground = this.createParalellepipedWithPhysics(
-      4.0,
-      0.1,
-      4.0,
+    const ground = this.createParalellepiped(
+      40,
+      1,
+      40,
       0,
       this.pos,
       this.quat,
       new THREE.MeshPhongMaterial({ color: 0xffffff })
     );
-    ground.receiveShadow = USE_SHADOWS;
+    ground.castShadow = true;
+    ground.receiveShadow = true;
 
     const texture = await ExpoTHREE.createTextureAsync({
       asset: Expo.Asset.fromModule(Files.textures.grid),
     });
-
+    // textureLoader.load('textures/grid.png', texture => {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(40, 40);
     ground.material.map = texture;
     ground.material.needsUpdate = true;
-
-    // Tower 1
-    var towerMass = 100.0;
-    var towerHalfExtents = new THREE.Vector3(0.2, 0.5, 0.2);
-    this.pos.set(-0.8, 0.5, 0);
-    this.quat.set(0, 0, 0, 1);
-    createObject(towerMass, towerHalfExtents, this.pos, this.quat, createMaterial(0x2188ff));
-
-    // Tower 2
-    this.pos.set(0.8, 0.5, 0);
-    this.quat.set(0, 0, 0, 1);
-    createObject(towerMass, towerHalfExtents, this.pos, this.quat, createMaterial(0x2188ff));
-
-    //Bridge
-    var bridgeMass = 10.0;
-    var bridgeHalfExtents = new THREE.Vector3(0.7, 0.02, 0.15);
-    this.pos.set(0, 1.02, 0);
-    this.quat.set(0, 0, 0, 1);
-    createObject(bridgeMass, bridgeHalfExtents, this.pos, this.quat, createMaterial(0x242c3a));
-
-    // Stones
-    var stoneMass = 12.0;
-    var stoneHalfExtents = new THREE.Vector3(0.1, 0.2, 0.015);
-    var numStones = 8;
-    this.quat.set(0, 0, 0, 1);
-    for (var i = 0; i < numStones; i++) {
-      this.pos.set(0, 0.2, 1.5 * (0.5 - i / (numStones + 1)));
-
-      createObject(stoneMass, stoneHalfExtents, this.pos, this.quat, createMaterial(0xbebebe));
+    // });
+    // Create soft volumes
+    const volumeMass = 15;
+    const sphereGeometry = new THREE.SphereBufferGeometry(1.5, 40, 25);
+    sphereGeometry.translate(5, 5, 0);
+    await this.createSoftVolume(sphereGeometry, volumeMass, 250);
+    const boxGeometry = new THREE.BufferGeometry().fromGeometry(
+      new THREE.BoxGeometry(1, 1, 5, 4, 4, 20)
+    );
+    boxGeometry.translate(-2, 5, 0);
+    await this.createSoftVolume(boxGeometry, volumeMass, 120);
+    // Ramp
+    this.pos.set(3, 1, 0);
+    this.quat.setFromAxisAngle(new THREE.Vector3(0, 0, 1), 30 * Math.PI / 180);
+    const obstacle = this.createParalellepiped(
+      10,
+      1,
+      4,
+      0,
+      this.pos,
+      this.quat,
+      new THREE.MeshPhongMaterial({ color: 0x606060 })
+    );
+    obstacle.castShadow = true;
+    obstacle.receiveShadow = true;
+  };
+  processGeometry = bufGeometry => {
+    // Obtain a Geometry
+    const geometry = new THREE.Geometry().fromBufferGeometry(bufGeometry);
+    // Merge the vertices so the triangle soup is converted to indexed triangles
+    const vertsDiff = geometry.mergeVertices();
+    // Convert again to BufferGeometry, indexed
+    const indexedBufferGeom = this.createIndexedBufferGeometryFromGeometry(geometry);
+    // Create index arrays mapping the indexed vertices to bufGeometry vertices
+    this.mapIndices(bufGeometry, indexedBufferGeom);
+  };
+  createIndexedBufferGeometryFromGeometry = geometry => {
+    const numVertices = geometry.vertices.length;
+    const numFaces = geometry.faces.length;
+    const bufferGeom = new THREE.BufferGeometry();
+    const vertices = new Float32Array(numVertices * 3);
+    const indices = new (numFaces * 3 > 65535 ? Uint32Array : Uint16Array)(numFaces * 3);
+    for (var i = 0; i < numVertices; i++) {
+      const p = geometry.vertices[i];
+      var i3 = i * 3;
+      vertices[i3] = p.x;
+      vertices[i3 + 1] = p.y;
+      vertices[i3 + 2] = p.z;
     }
-
-    // Mountain
-    var mountainMass = 86.0;
-    var mountainHalfExtents = new THREE.Vector3(0.4, 0.5, 0.4);
-    this.pos.set(0.5, mountainHalfExtents.y * 0.5, -0.7);
-    this.quat.set(0, 0, 0, 1);
-    var mountainPoints = [];
-    mountainPoints.push(
-      new THREE.Vector3(mountainHalfExtents.x, -mountainHalfExtents.y, mountainHalfExtents.z)
-    );
-    mountainPoints.push(
-      new THREE.Vector3(-mountainHalfExtents.x, -mountainHalfExtents.y, mountainHalfExtents.z)
-    );
-    mountainPoints.push(
-      new THREE.Vector3(mountainHalfExtents.x, -mountainHalfExtents.y, -mountainHalfExtents.z)
-    );
-    mountainPoints.push(
-      new THREE.Vector3(-mountainHalfExtents.x, -mountainHalfExtents.y, -mountainHalfExtents.z)
-    );
-    mountainPoints.push(new THREE.Vector3(0, mountainHalfExtents.y, 0));
-    const mountain = new THREE.Mesh(
-      new THREE.ConvexGeometry(mountainPoints),
-      createMaterial(0xcd53c3)
-    );
-    mountain.position.copy(this.pos);
-    mountain.quaternion.copy(this.quat);
-    this.convexBreaker.prepareBreakableObject(
-      mountain,
-      mountainMass,
-      new THREE.Vector3(),
-      new THREE.Vector3(),
+    for (var i = 0; i < numFaces; i++) {
+      const f = geometry.faces[i];
+      var i3 = i * 3;
+      indices[i3] = f.a;
+      indices[i3 + 1] = f.b;
+      indices[i3 + 2] = f.c;
+    }
+    bufferGeom.setIndex(new THREE.BufferAttribute(indices, 1));
+    bufferGeom.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    return bufferGeom;
+  };
+  isEqual = (x1, y1, z1, x2, y2, z2) => {
+    const delta = 0.000001;
+    return Math.abs(x2 - x1) < delta && Math.abs(y2 - y1) < delta && Math.abs(z2 - z1) < delta;
+  };
+  mapIndices = (bufGeometry, { attributes, index }) => {
+    // Creates ammoVertices, ammoIndices and ammoIndexAssociation in bufGeometry
+    const vertices = bufGeometry.attributes.position.array;
+    const idxVertices = attributes.position.array;
+    const indices = index.array;
+    const numIdxVertices = idxVertices.length / 3;
+    const numVertices = vertices.length / 3;
+    bufGeometry.ammoVertices = idxVertices;
+    bufGeometry.ammoIndices = indices;
+    bufGeometry.ammoIndexAssociation = [];
+    for (let i = 0; i < numIdxVertices; i++) {
+      const association = [];
+      bufGeometry.ammoIndexAssociation.push(association);
+      const i3 = i * 3;
+      for (let j = 0; j < numVertices; j++) {
+        const j3 = j * 3;
+        if (
+          this.isEqual(
+            idxVertices[i3],
+            idxVertices[i3 + 1],
+            idxVertices[i3 + 2],
+            vertices[j3],
+            vertices[j3 + 1],
+            vertices[j3 + 2]
+          )
+        ) {
+          association.push(j3);
+        }
+      }
+    }
+  };
+  createSoftVolume = async (bufferGeom, mass, pressure) => {
+    this.processGeometry(bufferGeom);
+    const volume = new THREE.Mesh(bufferGeom, new THREE.MeshPhongMaterial({ color: 0xffffff }));
+    volume.castShadow = true;
+    volume.receiveShadow = true;
+    volume.frustumCulled = false;
+    this.scene.add(volume);
+    const texture = await ExpoTHREE.createTextureAsync({
+      asset: Expo.Asset.fromModule(Files.textures.colors),
+    });
+    // textureLoader.load('textures/colors.png', texture => {
+    volume.material.map = texture;
+    volume.material.needsUpdate = true;
+    // });
+    // Volume physic object
+    const volumeSoftBody = this.softBodyHelpers.CreateFromTriMesh(
+      this.physicsWorld.getWorldInfo(),
+      bufferGeom.ammoVertices,
+      bufferGeom.ammoIndices,
+      bufferGeom.ammoIndices.length / 3,
       true
     );
-    this.createDebrisFromBreakableObject(mountain);
+    const sbConfig = volumeSoftBody.get_m_cfg();
+    sbConfig.set_viterations(40);
+    sbConfig.set_piterations(40);
+    // Soft-soft and soft-rigid collisions
+    sbConfig.set_collisions(0x11);
+    // Friction
+    sbConfig.set_kDF(0.1);
+    // Damping
+    sbConfig.set_kDP(0.01);
+    // Pressure
+    sbConfig.set_kPR(pressure);
+    // Stiffness
+    volumeSoftBody
+      .get_m_materials()
+      .at(0)
+      .set_m_kLST(0.9);
+    volumeSoftBody
+      .get_m_materials()
+      .at(0)
+      .set_m_kAST(0.9);
+    volumeSoftBody.setTotalMass(mass, false);
+    Ammo.castObject(volumeSoftBody, Ammo.btCollisionObject)
+      .getCollisionShape()
+      .setMargin(this.margin);
+    this.physicsWorld.addSoftBody(volumeSoftBody, 1, -1);
+    volume.userData.physicsBody = volumeSoftBody;
+    // Disable deactivation
+    volumeSoftBody.setActivationState(4);
+    this.softBodies.push(volume);
+  };
+  createParalellepiped = (sx, sy, sz, mass, pos, quat, material) => {
+    const threeObject = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz, 1, 1, 1), material);
+    const shape = new Ammo.btBoxShape(new Ammo.btVector3(sx * 0.5, sy * 0.5, sz * 0.5));
+    shape.setMargin(this.margin);
+    this.createRigidBody(threeObject, shape, mass, pos, quat);
+    return threeObject;
+  };
+  createRigidBody = (threeObject, physicsShape, mass, pos, quat) => {
+    threeObject.position.copy(pos);
+    threeObject.quaternion.copy(quat);
+    const transform = new Ammo.btTransform();
+    transform.setIdentity();
+    transform.setOrigin(new Ammo.btVector3(pos.x, pos.y, pos.z));
+    transform.setRotation(new Ammo.btQuaternion(quat.x, quat.y, quat.z, quat.w));
+    const motionState = new Ammo.btDefaultMotionState(transform);
+    const localInertia = new Ammo.btVector3(0, 0, 0);
+    physicsShape.calculateLocalInertia(mass, localInertia);
+    const rbInfo = new Ammo.btRigidBodyConstructionInfo(
+      mass,
+      motionState,
+      physicsShape,
+      localInertia
+    );
+    const body = new Ammo.btRigidBody(rbInfo);
+    threeObject.userData.physicsBody = body;
+    this.scene.add(threeObject);
+    if (mass > 0) {
+      this.rigidBodies.push(threeObject);
+      // Disable deactivation
+      body.setActivationState(4);
+    }
+    this.physicsWorld.addRigidBody(body);
+    return body;
   };
 
   setupScene = arSession => {
@@ -286,22 +408,6 @@ class Scene extends React.Component {
     );
   };
 
-  setupPhysics = () => {
-    // Physics configuration
-
-    this.collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
-    this.dispatcher = new Ammo.btCollisionDispatcher(this.collisionConfiguration);
-    this.broadphase = new Ammo.btDbvtBroadphase();
-    this.solver = new Ammo.btSequentialImpulseConstraintSolver();
-    this.physicsWorld = new Ammo.btDiscreteDynamicsWorld(
-      this.dispatcher,
-      this.broadphase,
-      this.solver,
-      this.collisionConfiguration
-    );
-    this.physicsWorld.setGravity(new Ammo.btVector3(0, -this.gravityConstant, 0));
-  };
-
   setupWorldAsync = async () => {
     this.setupLights();
   };
@@ -324,112 +430,6 @@ class Scene extends React.Component {
     this.time += delta;
   };
 
-  createParalellepipedWithPhysics = (sx, sy, sz, mass, pos, quat, material) => {
-    var object = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz, 1, 1, 1), material);
-    var shape = new Ammo.btBoxShape(new Ammo.btVector3(sx * 0.5, sy * 0.5, sz * 0.5));
-    shape.setMargin(this.margin);
-
-    this.createRigidBody(object, shape, mass, pos, quat);
-
-    return object;
-  };
-
-  createDebrisFromBreakableObject = object => {
-    object.castShadow = USE_SHADOWS;
-    object.receiveShadow = USE_SHADOWS;
-
-    const shape = this.createConvexHullPhysicsShape(object.geometry.vertices);
-    shape.setMargin(this.margin);
-
-    const body = this.createRigidBody(
-      object,
-      shape,
-      object.userData.mass,
-      null,
-      null,
-      object.userData.velocity,
-      object.userData.angularVelocity
-    );
-
-    // Set pointer back to the three object only in the debris objects
-    const btVecUserData = new Ammo.btVector3(0, 0, 0);
-    btVecUserData.threeObject = object;
-    body.setUserPointer(btVecUserData);
-  };
-
-  createConvexHullPhysicsShape = points => {
-    var shape = new Ammo.btConvexHullShape();
-
-    for (var i = 0, il = points.length; i < il; i++) {
-      var p = points[i];
-      this.tempBtVec3_1.setValue(p.x, p.y, p.z);
-      var lastOne = i === il - 1;
-      shape.addPoint(this.tempBtVec3_1, lastOne);
-    }
-
-    return shape;
-  };
-
-  createRigidBody(object, physicsShape, mass, pos, quat, vel, angVel) {
-    if (pos) {
-      object.position.copy(pos);
-    } else {
-      pos = object.position;
-    }
-    if (quat) {
-      object.quaternion.copy(quat);
-    } else {
-      quat = object.quaternion;
-    }
-
-    var transform = new Ammo.btTransform();
-    transform.setIdentity();
-    transform.setOrigin(new Ammo.btVector3(pos.x, pos.y, pos.z));
-    transform.setRotation(new Ammo.btQuaternion(quat.x, quat.y, quat.z, quat.w));
-    var motionState = new Ammo.btDefaultMotionState(transform);
-
-    var localInertia = new Ammo.btVector3(0, 0, 0);
-    physicsShape.calculateLocalInertia(mass, localInertia);
-
-    var rbInfo = new Ammo.btRigidBodyConstructionInfo(
-      mass,
-      motionState,
-      physicsShape,
-      localInertia
-    );
-    var body = new Ammo.btRigidBody(rbInfo);
-
-    body.setFriction(0.5);
-
-    if (vel) {
-      body.setLinearVelocity(new Ammo.btVector3(vel.x, vel.y, vel.z));
-    }
-    if (angVel) {
-      body.setAngularVelocity(new Ammo.btVector3(angVel.x, angVel.y, angVel.z));
-    }
-
-    object.userData.physicsBody = body;
-    object.userData.collided = false;
-
-    this.scene.add(object);
-
-    if (mass > 0) {
-      this.rigidBodies.push(object);
-
-      // Disable deactivation
-      body.setActivationState(4);
-    }
-
-    this.physicsWorld.addRigidBody(body);
-
-    return body;
-  }
-
-  removeDebris = object => {
-    this.scene.remove(object);
-    this.physicsWorld.removeRigidBody(object.userData.physicsBody);
-  };
-
   //http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
   fixedTimeStep = 1 / 60;
   maxSubSteps = 1;
@@ -437,117 +437,55 @@ class Scene extends React.Component {
     // Step world
     this.physicsWorld.stepSimulation(deltaTime, deltaTime * 4, this.fixedTimeStep);
 
+    // Update soft volumes
+    for (var i = 0, il = this.softBodies.length; i < il; i++) {
+      const volume = this.softBodies[i];
+      const geometry = volume.geometry;
+      const softBody = volume.userData.physicsBody;
+      const volumePositions = geometry.attributes.position.array;
+      const volumeNormals = geometry.attributes.normal.array;
+      const association = geometry.ammoIndexAssociation;
+      const numVerts = association.length;
+      const nodes = softBody.get_m_nodes();
+      for (let j = 0; j < numVerts; j++) {
+        const node = nodes.at(j);
+        const nodePos = node.get_m_x();
+        const x = nodePos.x();
+        const y = nodePos.y();
+        const z = nodePos.z();
+        const nodeNormal = node.get_m_n();
+        const nx = nodeNormal.x();
+        const ny = nodeNormal.y();
+        const nz = nodeNormal.z();
+        const assocVertex = association[j];
+        for (let k = 0, kl = assocVertex.length; k < kl; k++) {
+          let indexVertex = assocVertex[k];
+          volumePositions[indexVertex] = x;
+          volumeNormals[indexVertex] = nx;
+          indexVertex++;
+          volumePositions[indexVertex] = y;
+          volumeNormals[indexVertex] = ny;
+          indexVertex++;
+          volumePositions[indexVertex] = z;
+          volumeNormals[indexVertex] = nz;
+        }
+      }
+      geometry.attributes.position.needsUpdate = true;
+      geometry.attributes.normal.needsUpdate = true;
+    }
     // Update rigid bodies
-    for (let i = 0, il = this.rigidBodies.length; i < il; i++) {
+    for (var i = 0, il = this.rigidBodies.length; i < il; i++) {
       const objThree = this.rigidBodies[i];
       const objPhys = objThree.userData.physicsBody;
       const ms = objPhys.getMotionState();
       if (ms) {
         ms.getWorldTransform(this.transformAux1);
-        var p = this.transformAux1.getOrigin();
-        var q = this.transformAux1.getRotation();
+        const p = this.transformAux1.getOrigin();
+        const q = this.transformAux1.getRotation();
         objThree.position.set(p.x(), p.y(), p.z());
         objThree.quaternion.set(q.x(), q.y(), q.z(), q.w());
-
-        objThree.userData.collided = false;
       }
     }
-
-    for (let i = 0, il = this.dispatcher.getNumManifolds(); i < il; i++) {
-      const contactManifold = this.dispatcher.getManifoldByIndexInternal(i);
-      const rb0 = contactManifold.getBody0();
-      const rb1 = contactManifold.getBody1();
-
-      let threeObject0 = Ammo.castObject(rb0.getUserPointer(), Ammo.btVector3).threeObject;
-      let threeObject1 = Ammo.castObject(rb1.getUserPointer(), Ammo.btVector3).threeObject;
-
-      if (!threeObject0 && !threeObject1) {
-        continue;
-      }
-
-      const userData0 = threeObject0 ? threeObject0.userData : null;
-      const userData1 = threeObject1 ? threeObject1.userData : null;
-
-      const breakable0 = userData0 ? userData0.breakable : false;
-      const breakable1 = userData1 ? userData1.breakable : false;
-
-      const collided0 = userData0 ? userData0.collided : false;
-      const collided1 = userData1 ? userData1.collided : false;
-
-      if ((!breakable0 && !breakable1) || (collided0 && collided1)) {
-        continue;
-      }
-
-      var contact = false;
-      var maxImpulse = 0;
-      for (var j = 0, jl = contactManifold.getNumContacts(); j < jl; j++) {
-        var contactPoint = contactManifold.getContactPoint(j);
-        if (contactPoint.getDistance() < 0) {
-          contact = true;
-          var impulse = contactPoint.getAppliedImpulse();
-          if (impulse > maxImpulse) {
-            maxImpulse = impulse;
-            var pos = contactPoint.get_m_positionWorldOnB();
-            var normal = contactPoint.get_m_normalWorldOnB();
-            this.impactPoint.set(pos.x(), pos.y(), pos.z());
-            this.impactNormal.set(normal.x(), normal.y(), normal.z());
-          }
-          break;
-        }
-      }
-
-      // If no point has contact, abort
-      if (!contact) {
-        continue;
-      }
-
-      // Subdivision
-
-      const fractureImpulse = 25.0;
-
-      if (breakable0 && !collided0 && maxImpulse > fractureImpulse) {
-        var debris = this.convexBreaker.subdivideByImpact(
-          threeObject0,
-          this.impactPoint,
-          this.impactNormal,
-          1,
-          2,
-          1.5
-        );
-
-        const _numObjects = debris.length;
-        for (var j = 0; j < _numObjects; j++) {
-          this.createDebrisFromBreakableObject(debris[j]);
-        }
-
-        this.objectsToRemove[this.numObjectsToRemove++] = threeObject0;
-        userData0.collided = true;
-      }
-
-      if (breakable1 && !collided1 && maxImpulse > fractureImpulse) {
-        var debris = this.convexBreaker.subdivideByImpact(
-          threeObject1,
-          this.impactPoint,
-          this.impactNormal,
-          1,
-          2,
-          1.5
-        );
-
-        const _numObjects = debris.length;
-        for (var j = 0; j < _numObjects; j++) {
-          this.createDebrisFromBreakableObject(debris[j]);
-        }
-
-        this.objectsToRemove[this.numObjectsToRemove++] = threeObject1;
-        userData1.collided = true;
-      }
-    }
-
-    for (var i = 0; i < this.numObjectsToRemove; i++) {
-      this.removeDebris(this.objectsToRemove[i]);
-    }
-    this.numObjectsToRemove = 0;
   };
 }
 
