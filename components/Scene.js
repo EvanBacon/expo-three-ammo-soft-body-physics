@@ -24,7 +24,7 @@ class Scene extends React.Component {
   mouseCoords = new THREE.Vector2();
   raycaster = new THREE.Raycaster();
   ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
-  gravityConstant = 0.88;
+  gravityConstant = -9.8;
   collisionConfiguration;
   physicsWorld;
   margin = 0.05;
@@ -129,8 +129,8 @@ class Scene extends React.Component {
       this.quat,
       new THREE.MeshPhongMaterial({ color: 0xffffff })
     );
-    ground.castShadow = true;
-    ground.receiveShadow = true;
+    ground.castShadow = USE_SHADOWS;
+    ground.receiveShadow = USE_SHADOWS;
 
     const texture = await ExpoTHREE.createTextureAsync({
       asset: Expo.Asset.fromModule(Files.textures.grid),
@@ -164,8 +164,8 @@ class Scene extends React.Component {
       this.quat,
       new THREE.MeshPhongMaterial({ color: 0x606060 })
     );
-    obstacle.castShadow = true;
-    obstacle.receiveShadow = true;
+    obstacle.castShadow = USE_SHADOWS;
+    obstacle.receiveShadow = USE_SHADOWS;
   };
   processGeometry = bufGeometry => {
     // Obtain a Geometry
@@ -239,8 +239,8 @@ class Scene extends React.Component {
   createSoftVolume = async (bufferGeom, mass, pressure) => {
     this.processGeometry(bufferGeom);
     const volume = new THREE.Mesh(bufferGeom, new THREE.MeshPhongMaterial({ color: 0xffffff }));
-    volume.castShadow = true;
-    volume.receiveShadow = true;
+    volume.castShadow = USE_SHADOWS;
+    volume.receiveShadow = USE_SHADOWS;
     volume.frustumCulled = false;
     this.scene.add(volume);
     const texture = await ExpoTHREE.createTextureAsync({
@@ -342,11 +342,11 @@ class Scene extends React.Component {
 
       /// Standard Camera
       this.camera = new THREE.PerspectiveCamera(60, width / height, 0.2, 2000);
-      this.camera.position.set(-1.4, 0.8, 1.6);
+      this.camera.position.set(-14, 8, 16);
 
       // controls
       this.controls = new THREE.OrbitControls(this.camera);
-      this.controls.target.set(0, 0.2, 0);
+      this.controls.target.set(0, 2, 0);
     }
   };
 
@@ -387,8 +387,8 @@ class Scene extends React.Component {
         this.raycaster.setFromCamera(this.mouseCoords, this.camera);
 
         // Creates a ball and throws it
-        var ballMass = 6.4;
-        var ballRadius = 0.04;
+        var ballMass = 64;
+        var ballRadius = 0.4;
 
         var ball = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 14, 10), this.ballMaterial);
         ball.castShadow = USE_SHADOWS;
@@ -401,7 +401,7 @@ class Scene extends React.Component {
         var ballBody = this.createRigidBody(ball, ballShape, ballMass, this.pos, this.quat);
 
         this.pos.copy(this.raycaster.ray.direction);
-        this.pos.multiplyScalar(6.4 * event.touches.length);
+        this.pos.multiplyScalar(64 * event.touches.length);
         ballBody.setLinearVelocity(new Ammo.btVector3(this.pos.x, this.pos.y, this.pos.z));
       },
       false
@@ -432,10 +432,10 @@ class Scene extends React.Component {
 
   //http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
   fixedTimeStep = 1 / 60;
-  maxSubSteps = 1;
+  maxSubSteps = 10;
   updatePhysics = deltaTime => {
     // Step world
-    this.physicsWorld.stepSimulation(deltaTime, deltaTime * 4, this.fixedTimeStep);
+    this.physicsWorld.stepSimulation(deltaTime, this.maxSubSteps, this.fixedTimeStep);
 
     // Update soft volumes
     for (var i = 0, il = this.softBodies.length; i < il; i++) {
