@@ -431,8 +431,8 @@ class Scene extends React.Component {
   };
 
   //http://bulletphysics.org/mediawiki-1.5.8/index.php/Stepping_The_World
-  fixedTimeStep = 1 / 60;
-  maxSubSteps = 10;
+  fixedTimeStep = 1 / 30;
+  maxSubSteps = 1;
   updatePhysics = deltaTime => {
     // Step world
     this.physicsWorld.stepSimulation(deltaTime, this.maxSubSteps, this.fixedTimeStep);
